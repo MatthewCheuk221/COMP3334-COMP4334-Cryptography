@@ -23,6 +23,7 @@ int main()
 {
     int a = 0;
     int b = 0;
+    cout << "Formula: a^(-1) mod b";
     cout << "Input a: ";
     cin >> a;
     cout << "Input b: ";
