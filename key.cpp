@@ -5,7 +5,6 @@
 #include <fstream>
 using namespace std;
 
-int NumValue;
 int main() {
 	int n = 0;
 	int e = 0;
@@ -32,7 +31,6 @@ int main() {
 		}
 		if (o > 2)
 			p = o;
-		/* NumValue is the value read from a memory address */
 		/* Check and print out the values that can be p or q such that n = pq */
 		q = n / p;
 		cout << "Largest prime factors of " << n
@@ -65,6 +63,6 @@ int main() {
 	if (d < 0)
 		d += phi;
 
-	cout << "Modular multiplicative inverse is: " << d << "\n";
+	cout << "d, the modular multiplicative inverse, is: " << d << "\n";
 
 }
