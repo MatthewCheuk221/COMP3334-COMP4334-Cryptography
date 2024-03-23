@@ -16,7 +16,6 @@ int main() {
 	int o = n;
 	int p = 0,q = 0;
 	while (Temp != 140737488355327) {
-		
 		if (o % 2 == 0) {
 			p = 2;
 			while (o % 2 == 0) {
@@ -41,10 +40,8 @@ int main() {
 	int x = (p - 1) * (q - 1);
 	int phi = x;
 	int c = 0, d = 1;
-
 	if (x == 1)
 		d = 0;
-
 	while (e > 1) {
 		// q is quotient
 		int q = e / x;
@@ -52,17 +49,13 @@ int main() {
 		// Euclid's algo
 		x = e % x, e = t;
 		t = c;
-
 		// Update y and x
 		c = d - q * c;
 		d = t;
 		cout << "t: " << t << " d: " << d << " e: " << e << " q: " << q << " c: " << c << " x: " << x << "\n";
 	}
-
 	// Make d positive
 	if (d < 0)
 		d += phi;
-
 	cout << "d, the modular multiplicative inverse, is: " << d << "\n";
-
 }
