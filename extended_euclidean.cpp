@@ -4,21 +4,25 @@ using namespace std;
 
 // Recursive function to demonstrate the extended Euclidean algorithm.
 // It returns multiple values using tuple in C++.
+
 tuple<int, int, int> extended_gcd(int a, int b) {
+    
     if (a == 0) {
         cout << "a: " << a << " b: " << b << "\n" << endl;
         return make_tuple(b, 0, 1);
     }
     
-    int gcd, x, y;
     // unpack tuple returned by function into variables
+    
+    int gcd, x, y;
     tie(gcd, x, y) = extended_gcd(b % a, a);
     cout << "y: " << y << " gcd: " << gcd << " b: " << b << " x: " << x << " a: " << a << "\n" << endl;
     return make_tuple(gcd, (y - (b / a) * x), x);
+    
 }
 
-int main()
-{
+int main() {
+    
     int a = 0;
     int b = 0;
     cout << "Formula: a^(-1) mod b\n";
@@ -34,7 +38,13 @@ int main()
 
     cout << "y: " << y << " gcd: " << gcd << " b: " << b << " x: " << x << " a: " << a << "\n" << endl;
     cout << "1 = " << a << " * " << x << " + " << b << " * " << y << "\n" << endl;
+
+    if (x < 0) {
+        x += b;
+    }
+    
     cout << "Inverse: " << x << endl;
  
     return 0;
+    
 }
