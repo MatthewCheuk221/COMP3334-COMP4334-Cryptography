@@ -7,14 +7,13 @@ using namespace std;
 int main() {
 	int n = 0;
 	int e = 0;
-	int Temp = 0;
 	cout << "Input n: ";
 	cin >> n;
 	cout << "Input e: ";
 	cin >> e;
 	int o = n;
 	int p = 0,q = 0;
-	while (Temp != 140737488355327) {
+	while (true) {
 		if (o % 2 == 0) {
 			p = 2;
 			while (o % 2 == 0) {
@@ -34,7 +33,6 @@ int main() {
 		cout << "Largest prime factors of " << n
 			<< " are " << p << " and " << q << "\n";
 		break;
-		Temp += 1;
 	}
 	int x = (p - 1) * (q - 1);
 	int phi = x;
@@ -57,4 +55,6 @@ int main() {
 	if (d < 0)
 		d += phi;
 	cout << "d, the modular multiplicative inverse, is: " << d << "\n";
+
+	return 0;
 }
