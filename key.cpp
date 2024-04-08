@@ -54,7 +54,7 @@ int main() {
 	// Make d positive
 	if (d < 0)
 		d += phi;
-	cout << "d, the modular multiplicative inverse, is: " << d << "\n";
+	cout << "d, the modular multiplicative inverse, is " << d << "\n";
 
 	return 0;
 }
