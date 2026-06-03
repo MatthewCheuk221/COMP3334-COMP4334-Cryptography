@@ -24,9 +24,9 @@ def extended_gcd_steps(e, phi):
     Extended Euclidean Algorithm that prints steps.
     Returns d such that (e * d) % phi == 1.
     """
-    print("\n=== Extended Euclidean Algorithm Steps ===")
-    print(f"{'t':>6} {'d':>6} {'e':>6} {'q':>6} {'c':>6} {'x':>6}")
-    print("-" * 45)
+    print("\n=== Extended Euclidean Algorithm ===\n")
+    print(f"{'t':>12} {'d':>12} {'e':>12} {'q':>12} {'c':>12} {'x':>12}")
+    print("-" * 77)
 
     x = phi
     c = 0
@@ -48,13 +48,13 @@ def extended_gcd_steps(e, phi):
         c = d - q * c
         d = t
 
-        print(f"{t:6d} {d:6d} {e:6d} {q:6d} {c:6d} {x:6d}")
+        print(f"{t:12d} {d:12d} {e:12d} {q:12d} {c:12d} {x:12d}")
 
     # Make d positive
     if d < 0:
         d += phi
 
-    print("-" * 45)
+    print("-" * 77)
     return d
 
 
@@ -86,7 +86,7 @@ def compute_private_key(n, e):
 # ---------- interactive mode -------------------------------------------------
 
 def prompt():
-    print("=== RSA Private Key Calculator (d from n and e) ===")
+    print("=== RSA Private Key Calculator (d from n and e) ===\n")
     try:
         n = int(input("n = "))
         e = int(input("e = "))
@@ -96,7 +96,7 @@ def prompt():
         if d is not None:
             print(f"\np = {info['p']}, q = {info['q']}")
             print(f"phi(n) = {info['phi']}")
-            print(f"\nTherefore, d = {d}")
+            print(f"\nd = {d}\n")
         else:
             print(f"\nError: {info}")
 
