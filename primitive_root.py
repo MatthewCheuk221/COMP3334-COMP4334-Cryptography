@@ -46,6 +46,8 @@ def has_primitive_root(n):
 def find_one_primitive_root(n):
     if not has_primitive_root(n):
         return None
+    if n == 2:                # special-case first
+        return 1
     phi = euler_totient(n)
     pf = prime_factors(phi)
     for a in range(2, n):
