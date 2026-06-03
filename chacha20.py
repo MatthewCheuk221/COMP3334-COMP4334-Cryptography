@@ -1,149 +1,125 @@
-import binascii
+from binascii import hexlify
+import random
 
-def isuint32(i):
-    return isinstance(i, int) and abs(i) == i and i < 0xFFFFFFFF
+# ----------  low-level helpers ----------
 
-def asint32(i):
-    return i & 0xFFFFFFFF
+def rotl32(x: int, n: int) -> int:
+    """Rotate a 32-bit integer x left by n bits."""
+    return ((x << n) & 0xffffffff) | (x >> (32 - n))
 
-def fromstring(bytestring, byte_length):
-    assert len(bytestring) % (byte_length) == 0
-    for i in range(0, len(bytestring), byte_length):
-        c = bytestring[i: i+byte_length]
-        yield int.from_bytes(c, 'little')
+def quarter_round(a: int, b: int, c: int, d: int):
+    """ChaCha20 quarter-round (ARX) – spec §2.1."""
+    a = (a + b) & 0xffffffff;  d ^= a;  d = rotl32(d, 16)
+    c = (c + d) & 0xffffffff;  b ^= c;  b = rotl32(b, 12)
+    a = (a + b) & 0xffffffff;  d ^= a;  d = rotl32(d,  8)
+    c = (c + d) & 0xffffffff;  b ^= c;  b = rotl32(b,  7)
+    return a, b, c, d
 
-def chacha20_wordtobyte(inp):
-    x = inp.copy()
-    def quarter_round(a, b, c, d):
-        rotate = lambda v, c: asint32((asint32(v << c)) | (asint32(v >> (32 - c))))
-        x[a] = asint32(x[a] + x[b])
-        x[d] = asint32(rotate(x[d] ^ x[a], 16))
-        x[c] = asint32(x[c] + x[d])
-        x[b] = asint32(rotate(x[b] ^ x[c], 12))
-        x[a] = asint32(x[a] + x[b])
-        x[d] = asint32(rotate(x[d] ^ x[a], 8))
-        x[c] = asint32(x[c] + x[d])
-        x[b] = asint32(rotate(x[b] ^ x[c], 7))
-    for i in range(10):
-        quarter_round(0, 4,  8, 12)
-        quarter_round(1, 5,  9, 13)
-        quarter_round(2, 6, 10, 14)
-        quarter_round(3, 7, 11, 15)
-        quarter_round(0, 5, 10, 15)
-        quarter_round(1, 6, 11, 12)
-        quarter_round(2, 7,  8, 13)
-        quarter_round(3, 4,  9, 14)
-    for i in range(16):
-        x[i] = asint32(x[i] + inp[i])
-    x = [i for n in x for i in n.to_bytes(4, 'little')]
-    return x
+# ----------  part (a): 5 test cases ----------
 
-sigma = b"expand 32-byte k"
-
-def keysetup(iv, key, counter = 0):
-    assert isuint32(counter)
-    key_arr =   list(fromstring(key,   4))
-    nonce =    list(fromstring(iv,    4))
-    const_arr = list(fromstring(sigma, 4))
-
-    ctx = [0] * 16
-
-    ctx[4] = key_arr[0]
-    ctx[5] = key_arr[1]
-    ctx[6] = key_arr[2]
-    ctx[7] = key_arr[3]
-    ctx[8] = key_arr[4]
-    ctx[9] = key_arr[5]
-    ctx[10] = key_arr[6]
-    ctx[11] = key_arr[7]
-
-    ctx[0] = const_arr[0]
-    ctx[1] = const_arr[1]
-    ctx[2] = const_arr[2]
-    ctx[3] = const_arr[3]
-
-    ctx[12] = counter
-    ctx[13] = counter
-
-    ctx[14] = nonce[0]
-    ctx[15] = nonce[1]
-
-    return ctx
-
-def encrypt_bytes(ctx, m, byts):
-    c = [0] * len(m)
-
-    if byts == 0:
-        return
-
-    c_pos = 0
-    m_pos = 0
-
-    while True:
-        output = chacha20_wordtobyte(ctx)
-        ctx[12] = asint32(ctx[12] + 1)
-
-        if ctx[12] == 0:
-            ctx[13] = asint32(ctx[13] + 1)
-
-        if byts <= 64:
-            for i in range(byts):
-                c[i + c_pos] = asint32(m[i + m_pos] ^ output[i])
-            return c
-
-        for i in range(64):
-            c[i + c_pos] = asint32(m[i + m_pos] ^ output[i])
-
-        byts  = asint32(byts  - 64)
-        c_pos = asint32(c_pos + 64)
-        m_pos = asint32(m_pos + 64)
-
-def decrypt_bytes(ctx, c, byts):
-    return encrypt_bytes(ctx, c, byts)
-
-def to_string(c):
-    c_str = ""
-    for i in c:
-        c_str += chr(i)
-    return c_str
-
-e_key = [
-    b"00000000000000000000000000000000000000000000000000000000"
-    b"00000000",
-    b"00000000000000000000000000000000000000000000000000000000"
-    b"00000000",
-    b"00000000000000000000000000000000000000000000000000000000"
-    b"00000000",
-    b"00000000000000000000000000000000000000000000000000000000"
-    b"00000000",
-    b"00000000000000000000000000000000000000000000000000000000"
-    b"00000000"
+TEST_VECTORS = [
+    # 1) RFC 8439 round-test vector
+    (0x11111111, 0x01020304, 0x9B8D6F43, 0x01234567),
+    # 2) all-zero input (should stay zero)
+    (0x00000000, 0x00000000, 0x00000000, 0x00000000),
+    # 3) small ascending integers
+    (0x00000001, 0x00000002, 0x00000003, 0x00000004),
+    # 4) quirky “dead-beef” values
+    (0xDEADBEEF, 0xCAFEBABE, 0x8BADF00D, 0xFEEDFACE),
+    # 5) all ones (0xFFFFFFFF)
+    (0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF),
 ]
 
-value = [
-    b"0000000000000000",
-    b"0000000000000001",
-    b"0000000000000010",
-    b"0000000000000011",
-    b"0000000000000100"
-]
-def test_passes(i):
-    key = binascii.unhexlify(e_key[i])
-    iv = binascii.unhexlify(value[i])
+print("Quarter-round test-vectors:")
+for idx, (a, b, c, d) in enumerate(TEST_VECTORS, 1):
+    out = quarter_round(a, b, c, d)
+    pretty_in  = ", ".join(f"0x{x:08x}" for x in (a, b, c, d))
+    pretty_out = ", ".join(f"0x{x:08x}" for x in out)
+    print(f"{idx}. in: [{pretty_in}]  →  out: [{pretty_out}]")
+print()
 
-    m = [0] * (100 // 2)
-    ctx = keysetup(iv, key)
-    c = encrypt_bytes(ctx, m, len(m))
-    encrypted_str = binascii.hexlify(b''.join([int(x).to_bytes(1,'little') for x in c]))
-    print("Output: "+str(encrypted_str))
+# ----------  part (b): diffusion measurement ----------
 
-def run_tests():
-    amount_tests = len(value)
+def popcount(x: int) -> int:
+    """Count 1-bits (works on any Python version)."""
+    return bin(x & 0xffffffff).count("1")        # mask to 32 bits, count '1's
 
-    for i in range(amount_tests):
-        print("Input: "+str(value[i]))
-        test_passes(i)
+def hamming_distance128(q1, q2) -> int:
+    """Hamming distance between two 4-word (128-bit) tuples."""
+    diff_bits = 0
+    for w1, w2 in zip(q1, q2):
+        diff_bits += popcount(w1 ^ w2)
+    return diff_bits
 
-if __name__ == "__main__":
-    run_tests()
+def diffusion_for_input(words):
+    """Flip each of the 128 input bits once, average #changed output bits."""
+    base_out = quarter_round(*words)
+    total_diff = 0
+    for bit in range(128):
+        w = bit // 32;  pos = bit % 32
+        flipped = list(words);  flipped[w] ^= (1 << pos)
+        diff = hamming_distance128(base_out, quarter_round(*flipped))
+        total_diff += diff
+    return total_diff / 128
 
+random.seed(0)
+sample = tuple(random.getrandbits(32) for _ in range(4))
+avg_diff = diffusion_for_input(sample)
+print(f"Diffusion experiment on random sample {sample}:")
+print(f"  average changed output-bits per 1-bit input flip ≈ {avg_diff:.2f} / 128\n")
+
+# ----------  complete ChaCha20 encrypt / decrypt ----------
+
+CONST = (0x61707865, 0x3320646e, 0x79622d32, 0x6b206574)  # "expand 32-byte k"
+
+def chacha20_block(key: bytes, counter: int, nonce: bytes) -> bytes:
+    assert len(key) == 32 and len(nonce) == 12
+    state = list(CONST) \
+          + [int.from_bytes(key[i:i+4], "little") for i in range(0, 32, 4)] \
+          + [counter & 0xffffffff] \
+          + [int.from_bytes(nonce[i:i+4], "little") for i in range(0, 12, 4)]
+
+    working = state.copy()
+    for _ in range(10):                         # 20 rounds = 10 double-rounds
+        # odd round (column)
+        working[0], working[4], working[ 8], working[12] = quarter_round(working[0], working[4], working[ 8], working[12])
+        working[1], working[5], working[ 9], working[13] = quarter_round(working[1], working[5], working[ 9], working[13])
+        working[2], working[6], working[10], working[14] = quarter_round(working[2], working[6], working[10], working[14])
+        working[3], working[7], working[11], working[15] = quarter_round(working[3], working[7], working[11], working[15])
+        # even round (diagonal)
+        working[0], working[5], working[10], working[15] = quarter_round(working[0], working[5], working[10], working[15])
+        working[1], working[6], working[11], working[12] = quarter_round(working[1], working[6], working[11], working[12])
+        working[2], working[7], working[ 8], working[13] = quarter_round(working[2], working[7], working[ 8], working[13])
+        working[3], working[4], working[ 9], working[14] = quarter_round(working[3], working[4], working[ 9], working[14])
+
+    out_words = [(w + s) & 0xffffffff for w, s in zip(working, state)]
+    return b"".join(w.to_bytes(4, "little") for w in out_words)
+
+def chacha20_crypt(key: bytes, nonce: bytes, counter: int, data: bytes) -> bytes:
+    """Encrypt *or* decrypt – XOR with keystream."""
+    keystream_off = 0
+    result = bytearray()
+    while data:
+        ks_block = chacha20_block(key, counter, nonce)
+        block = data[:64]
+        result += bytes(b ^ ks for b, ks in zip(block, ks_block))
+        data = data[64:]
+        counter += 1
+    return bytes(result)
+
+# Quick round-trip sanity check (RFC 8439 vector counter = 1)
+key   = bytes.fromhex("000102030405060708090a0b0c0d0e0f"
+                      "101112131415161718191a1b1c1d1e1f")
+nonce = bytes.fromhex("000000090000004a00000000")
+msg   = b"Hello ChaCha20!"
+ct    = chacha20_crypt(key, nonce, 1, msg)
+pt    = chacha20_crypt(key, nonce, 1, ct)
+print("Stream-cipher demo:")
+print("  ciphertext :", hexlify(ct).decode())
+print("  decrypted  :", pt.decode())
+
+ciphertext = chacha20_crypt(key, nonce, counter=0, data=b"plaintext")
+plaintext_back = chacha20_crypt(key, nonce, counter=0, data=ciphertext)
+
+print("  ciphertext :", hexlify(ciphertext).decode())
+print("  decrypted  :", plaintext_back.decode())
