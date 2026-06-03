@@ -19,22 +19,43 @@ def prime_factors(n):
     return factors
 
 
-def extended_gcd(a, b):
-    """Extended Euclidean Algorithm. Returns (gcd, x, y) where ax + by = gcd."""
-    if a == 0:
-        return b, 0, 1
-    gcd, x1, y1 = extended_gcd(b % a, a)
-    x = y1 - (b // a) * x1
-    y = x1
-    return gcd, x, y
+def extended_gcd_steps(e, phi):
+    """
+    Extended Euclidean Algorithm that prints steps.
+    Returns d such that (e * d) % phi == 1.
+    """
+    print("\n=== Extended Euclidean Algorithm Steps ===")
+    print(f"{'t':>6} {'d':>6} {'e':>6} {'q':>6} {'c':>6} {'x':>6}")
+    print("-" * 45)
 
+    x = phi
+    c = 0
+    d = 1
 
-def mod_inverse(e, phi):
-    """Return d such that (e * d) % phi == 1, or None if no inverse exists."""
-    gcd, x, _ = extended_gcd(e, phi)
-    if gcd != 1:
-        return None
-    return x % phi
+    if x == 1:
+        d = 0
+
+    while e > 1:
+        q = e // x
+        t = x
+
+        # Euclid step
+        x = e % x
+        e = t
+        t = c
+
+        # Update coefficients
+        c = d - q * c
+        d = t
+
+        print(f"{t:6d} {d:6d} {e:6d} {q:6d} {c:6d} {x:6d}")
+
+    # Make d positive
+    if d < 0:
+        d += phi
+
+    print("-" * 45)
+    return d
 
 
 def find_p_and_q(n):
@@ -55,8 +76,8 @@ def compute_private_key(n, e):
         return None, "Could not factor n into two primes"
 
     phi = (p - 1) * (q - 1)
-    d = mod_inverse(e, phi)
-    if d is None:
+    d = extended_gcd_steps(e, phi)
+    if (e * d) % phi != 1:
         return None, "e has no modular inverse modulo phi(n)"
 
     return d, {"p": p, "q": q, "phi": phi}
