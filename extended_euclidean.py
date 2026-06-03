@@ -59,7 +59,7 @@ def prompt():
         if d is not None:
             if (a * d) % b == 1:
                 print(f"\nd = a^(-1) mod b\n  = {a}^(-1) mod {b}\n  = {d}")
-                print(f"\nVerification:\n({a} * {d}) % {b} = {(a * d) % b}\n")
+                print(f"\nVerification:\n({a} * {d}) mod {b} = {(a * d) % b}\n")
             else:
                 print("\nNo modular inverse exists (gcd(a, b) != 1).")
         else:
